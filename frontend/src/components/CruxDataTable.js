@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Table,
   TableBody,
@@ -7,134 +7,136 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Typography,
+  TableSortLabel,
+  CircularProgress,
 } from "@mui/material";
+import { XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
 
-// A helper function to render histogram data
-const renderHistogram = (histogram) => {
-  return histogram.map((bin, index) => (
-    <span key={index}>
-      {`Start: ${bin.start}, End: ${bin.end || "∞"}, Density: ${(
-        bin.density * 100
-      ).toFixed(2)}%`}
-      <br />
-    </span>
-  ));
-};
+const CruxDataTable = ({ data, isLoading }) => {
+  const [sortBy, setSortBy] = useState("p75");
+  const [order, setOrder] = useState("asc");
 
-const CruxDataTable = ({ data }) => {
-  if (!data || !data.record) {
-    return <div>No data available</div>;
+  if (isLoading) {
+    return <CircularProgress />;
   }
 
-  const { metrics } = data.record;
+  if (!data || !data.record || !data.record.metrics) return null;
+
+  const metrics = Object.keys(data.record.metrics).map((metric) => ({
+    key: metric,
+    label: metric.replace(/_/g, " "),
+    data: data.record.metrics[metric],
+  }));
+
+  const handleSortChange = (metric) => {
+    setSortBy(metric);
+    setOrder(order === "asc" ? "desc" : "asc");
+  };
+
+  const sortedMetrics = metrics.slice().sort((a, b) => {
+    const valueA = a.data?.percentiles?.[sortBy] || 0;
+    const valueB = b.data?.percentiles?.[sortBy] || 0;
+
+    if (order === "asc") {
+      return valueA - valueB;
+    } else {
+      return valueB - valueA;
+    }
+  });
 
   return (
     <TableContainer component={Paper}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Metric</TableCell>
-            <TableCell>Value(s)</TableCell>
-            <TableCell>Percentile (p75)</TableCell>
+            <TableCell
+              sx={{
+                border: "1px solid #ddd",
+                width: "30%",
+                textAlign: "center",
+              }}
+            >
+              <Typography fontWeight="bold">Metric</Typography>
+            </TableCell>
+            <TableCell
+              sx={{
+                border: "1px solid #ddd",
+                width: "30%",
+                textAlign: "center",
+              }}
+            >
+              <TableSortLabel
+                active={sortBy === "p75"}
+                direction={order}
+                onClick={() => handleSortChange("p75")}
+              >
+                <Typography fontWeight="bold">p75</Typography>
+              </TableSortLabel>
+            </TableCell>
+            <TableCell
+              sx={{
+                border: "1px solid #ddd",
+                width: "40%",
+                textAlign: "center",
+              }}
+            >
+              <Typography fontWeight="bold">Histogram</Typography>
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {/* Form Factors */}
-          <TableRow>
-            <TableCell>Form Factors</TableCell>
-            <TableCell>
-              Desktop:{" "}
-              {(metrics.form_factors.fractions.desktop * 100).toFixed(2)}%{" "}
-              <br />
-              Phone: {(metrics.form_factors.fractions.phone * 100).toFixed(
-                2
-              )}% <br />
-              Tablet: {(metrics.form_factors.fractions.tablet * 100).toFixed(2)}
-              %
-            </TableCell>
-            <TableCell>-</TableCell>
-          </TableRow>
+          {sortedMetrics.map((metric) => {
+            const metricData = metric.data;
+            const p75 = metricData?.percentiles?.p75 || "-";
+            const histogram = metricData?.histogram || [];
 
-          {/* Interaction to Next Paint */}
-          <TableRow>
-            <TableCell>Interaction to Next Paint</TableCell>
-            <TableCell>
-              {renderHistogram(metrics.interaction_to_next_paint.histogram)}
-            </TableCell>
-            <TableCell>
-              {metrics.interaction_to_next_paint.percentiles.p75} ms
-            </TableCell>
-          </TableRow>
-
-          {/* Largest Contentful Paint */}
-          <TableRow>
-            <TableCell>Largest Contentful Paint</TableCell>
-            <TableCell>
-              {renderHistogram(metrics.largest_contentful_paint.histogram)}
-            </TableCell>
-            <TableCell>
-              {metrics.largest_contentful_paint.percentiles.p75} ms
-            </TableCell>
-          </TableRow>
-
-          {/* First Contentful Paint */}
-          <TableRow>
-            <TableCell>First Contentful Paint</TableCell>
-            <TableCell>
-              {renderHistogram(metrics.first_contentful_paint.histogram)}
-            </TableCell>
-            <TableCell>
-              {metrics.first_contentful_paint.percentiles.p75} ms
-            </TableCell>
-          </TableRow>
-
-          {/* Cumulative Layout Shift */}
-          <TableRow>
-            <TableCell>Cumulative Layout Shift</TableCell>
-            <TableCell>
-              {renderHistogram(metrics.cumulative_layout_shift.histogram)}
-            </TableCell>
-            <TableCell>
-              {metrics.cumulative_layout_shift.percentiles.p75}
-            </TableCell>
-          </TableRow>
-
-          {/* Round Trip Time */}
-          <TableRow>
-            <TableCell>Round Trip Time</TableCell>
-            <TableCell>-</TableCell>
-            <TableCell>{metrics.round_trip_time.percentiles.p75} ms</TableCell>
-          </TableRow>
-
-          {/* Time to First Byte */}
-          <TableRow>
-            <TableCell>Time to First Byte</TableCell>
-            <TableCell>
-              {renderHistogram(
-                metrics.experimental_time_to_first_byte.histogram
-              )}
-            </TableCell>
-            <TableCell>
-              {metrics.experimental_time_to_first_byte.percentiles.p75} ms
-            </TableCell>
-          </TableRow>
-
-          {/* Navigation Types */}
-          <TableRow>
-            <TableCell>Navigation Types</TableCell>
-            <TableCell>
-              Navigate:{" "}
-              {(metrics.navigation_types.fractions.navigate * 100).toFixed(2)}%{" "}
-              <br />
-              Prerender:{" "}
-              {(metrics.navigation_types.fractions.prerender * 100).toFixed(
-                2
-              )}% <br />
-              Reload:{" "}
-              {(metrics.navigation_types.fractions.reload * 100).toFixed(2)}%
-            </TableCell>
-            <TableCell>-</TableCell>
-          </TableRow>
+            return (
+              <TableRow key={metric.key}>
+                <TableCell
+                  sx={{
+                    border: "1px solid #ddd",
+                    width: "30%",
+                    textAlign: "center",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {metric.label}
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: "1px solid #ddd",
+                    width: "30%",
+                    textAlign: "center",
+                  }}
+                >
+                  {p75}
+                </TableCell>
+                <TableCell
+                  sx={{
+                    border: "1px solid #ddd",
+                    width: "40%",
+                    textAlign: "center",
+                  }}
+                >
+                  {histogram.length > 0 ? (
+                    <BarChart width={300} height={150} data={histogram}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="start"
+                        tickFormatter={(value) => `${value}ms`}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="density" fill="#009dda" />
+                    </BarChart>
+                  ) : (
+                    <Typography>No data available</Typography>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>
