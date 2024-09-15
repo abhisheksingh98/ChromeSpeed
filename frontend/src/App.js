@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import CruxDataTable from "./components/CruxDataTable";
 import DataSummaryTable from "./components/DataSummaryTable";
+import { BASE_URL } from "./constants";
 
 const theme = createTheme({
   palette: {
@@ -57,10 +58,7 @@ const App = () => {
     try {
       const fetchedData = [];
       for (const url of urlList) {
-        const response = await axios.post(
-          "http://localhost:5000/api/crux/fetch",
-          { url }
-        );
+        const response = await axios.post(BASE_URL, { url });
         fetchedData.push({ url, data: response.data });
       }
       setData(fetchedData);

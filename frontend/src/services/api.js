@@ -1,5 +1,6 @@
 import axios from "axios";
+import { BASE_URL } from "../constants";
 
 export const fetchCruxReport = (url) => {
-  return axios.post("http://localhost:5000/api/crux/fetch", { url });
+  return axios.post(BASE_URL, { url });
 };
